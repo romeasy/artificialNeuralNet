@@ -44,23 +44,24 @@ public:
 
 
 	/**
-	 * Apply classification on a sample set.
+	 * Trains the neural network using the offline batch update algorithm.
+	 * This algorithm sums up many samples (an epoch) and applies the
+	 * weight update only after all samples in the epoch were propagated
+	 * back and forth the network.
+	 * The size of the epoch is here the same as the number of samples.
+	 * Thus, N determines how often the samples are feeded to the net.
+	 *
+	 * @param N: The number of times, every sample is feeded to the net
+	 * @param _samples: The sample matrix
+	 * @param _labels: The labels for our training samples
 	 */
-	arma::mat classifySamples (arma::mat _samples);
+	void batchLearning (uint N, arma::mat _samples, arma::mat _labels);
 
 
 	/**
-	 * Implements the forward pass for our network. An input vector is pllugged
-	 * into the network and an output is generated according to it.
-	 *
-	 * @param _input: the input vector. It must have the same dimensions as the first layer
-	 *
-	 * @return the output vector of our network
+	 * Apply classification on a sample set.
 	 */
-	arma::vec feedForward (arma::vec _input,
-			               std::vector<arma::vec>& summedInput,
-			               std::vector<arma::vec>& output
-	);
+	arma::mat classifySamples (arma::mat _samples);
 
 
 	/**
@@ -77,42 +78,40 @@ public:
 private:
 
 	/**
-	 * Initialize the neural network by initializing the weights and
+	 * Initialize the neural network by constructing the output and derivatives
+	 * matrices according to the net's architecture.
 	 *
 	 * @brief Please note that the weights with entry 0 represent no connection
 	 *
 	 * @param _weights the initial weights for the network.
 	 * @param _layers: each element of the vector represents one layer. The number describes the number of neurons
 	 */
-	void initialize (std::vector<arma::vec>& summedInput,
-                     std::vector<arma::vec>& output,
-                     std::vector<arma::vec>& derivatives
-    );
+	void initialize (std::vector<arma::vec>& output, std::vector<arma::vec>& derivatives);
 
 
 	/**
-	 * Calculates the activation function for a vector.
+	 * Implements the forward pass for our network. An input vector is pllugged
+	 * into the network and an output is generated according to it.
 	 *
-	 * @param _input: the input vector
-	 * @return a vector of the same size as the input containing the sigmoid values
+	 * @param _input: the input vector. It must have the same dimensions as the first layer
+	 *
+	 * @return the output vector of our network
 	 */
-	arma::vec sigmoid (arma::vec _input);
+	arma::vec feedForward (arma::vec _input, std::vector<arma::vec>& output);
 
 
 	/**
 	 * Does the backpropagation algorithm to calculate the partial gradients
 	 * in the net.
 	 * The function expects the forward pass being already finished for a certain
-	 * input. That is, the summedInput matrices as well as the output matrices must
-	 * already be calculated.
+	 * input. That is, the output matrix must already be calculated.
 	 *
 	 * @brief The function fills the derivatives matrices and does nothing else.
 	 *
 	 * @param _labels: the expected values corresponding to the currently already fed input
 	 */
 	void feedBackward (arma::vec _labels,
-			           std::vector<arma::vec>& summedInput,
-			           std::vector<arma::vec> output,
+			           std::vector<arma::vec>& output,
 			           std::vector<arma::vec>& derivatives
 	);
 
@@ -128,6 +127,26 @@ private:
 	void updateWeights (std::vector<arma::vec>& output, std::vector<arma::vec>& derivatives);
 
 
+	/**
+	 * Calculates the activation function for a vector.
+	 *
+	 * @param _input: the input vector
+	 * @return a vector of the same size as the input containing the sigmoid values
+	 */
+	arma::vec sigmoid (arma::vec _input);
+
+
+	/**
+	 * Adds the bias neuron to a given vector. That is, return a vector with
+	 * a length of n+1 where the content of the returned vector is the same
+	 * as the original one, but with a 1 as last element.
+	 *
+	 * @note Same as transforming the vector to homogenious form
+	 *
+	 * @param _v: the vector the 1 should be added to
+	 *
+	 * @return a vector of form (v, 1)^T
+	 */
 	arma::vec addBias (arma::vec _v);
 
 

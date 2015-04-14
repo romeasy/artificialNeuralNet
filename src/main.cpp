@@ -21,105 +21,31 @@ arma::mat mvrnorm(int n, arma::vec mu, arma::mat sigma) {
 }
 
 
+/**
+ * Calculate the number of successful classifications and print some stats.
+ */
 float calculateSuccessRate (arma::mat guesses, arma::mat labels)
 {
 	unsigned int positives = 0;
+	uint falsePositives = 0;
+	uint falseNegatives = 0;
 	for (unsigned int i=0; i<guesses.n_cols; ++i) {
-		if (arma::norm(guesses.col(i) - labels.col(i)) < 0.3)
+		if (arma::norm(guesses.col(i) - labels.col(i)) < 0.5)
 			++positives;
+		else {
+			if (arma::norm(labels.col(i)) > 0)
+				++falseNegatives;
+			else
+				++falsePositives;
+		}
 	}
+	printf("positives: %d\n", positives);
+	printf("false positives: %d\tfalse negatives: %d\n", falsePositives, falseNegatives);
 	return positives/(float)guesses.n_cols;
 }
 
 
-void testBallClassification ()
-{
-	printf("SETUP MATRICES\n");
-	arma::mat Samples;
-	Samples.load("src/ballHistograms2.csv", arma::csv_ascii, true);
-	Samples = Samples.cols(0, Samples.n_cols-3).t();
-	Samples = arma::shuffle(Samples);
-	Samples.col(0).print("first col");
-	arma::mat Labels = arma::ones(Samples.n_cols).t();
-	printf("Ball Samples is of size (%d x %d)\n", Samples.n_cols, Samples.n_rows);
-	printf("Ball Labels is of size (%d x %d)\n", Labels.n_cols, Labels.n_rows);
 
-	printf("TRAINING ANN\n");
-	std::vector<unsigned int> architecture {18, 4, 4, 1};
-	NeuralNet ann (0.3, architecture);
-	ann.trainNetwork(Samples, Labels);
-	ann.getWeights(0).print("W 0 -> 1");
-	ann.getWeights(1).print("W 1 -> 2");
-	ann.getWeights(2).print("W 2 -> 3");
-
-	printf("CLASSIFY DATA\n");
-	arma::mat SamplesTest;
-	SamplesTest.load("src/ballHistograms.csv", arma::csv_ascii, true);
-	SamplesTest = arma::shuffle(SamplesTest.cols(0, SamplesTest.n_cols-2)).t();
-	arma::mat guesses = ann.classifySamples(SamplesTest);
-	guesses.print("classification");
-	printf("success rate on training data: %f\n", calculateSuccessRate(ann.classifySamples(SamplesTest), arma::ones(SamplesTest.n_cols).t()));
-}
-
-
-void testAbalone ()
-{
-	printf("TESTCASE ABALONE DATASET\n");
-	arma::mat Samples;
-	Samples.load("src/abalone.csv", arma::csv_ascii, true);
-	Samples = arma::shuffle(Samples);
-	arma::mat labels_t = Samples.col(0);
-
-	// construct labels
-	printf("labels_t is of size (%d x %d)\n", labels_t.n_cols, labels_t.n_rows);
-	arma::mat labels = arma::zeros(labels_t.n_rows, 1);
-	printf("labels is of size (%d x %d)\n", labels.n_cols, labels.n_rows);
-	arma::mat infants = arma::conv_to<arma::mat>::from(arma::any( labels_t.t() == 2 ));
-	arma::mat males = arma::conv_to<arma::mat>::from(arma::any( labels_t.t() == 1 ));
-	arma::mat females = arma::conv_to<arma::mat>::from(arma::any( labels_t.t() == 0 ));
-	printf("infants is of size (%d x %d)\n", infants.n_cols, infants.n_rows);
-	labels = males + females*2; // -> output should be 0 for infants, 1 for males, 2 for females
-	//labels.col(0) = infants.t();
-	//labels.col(1) = males.t();
-	//labels.col(2) = females.t();
-	//labels.print("LABELS");
-	// construct other matrices
-	arma::mat trainingSamples = Samples.submat(0, 1, (int)(Samples.n_rows*0.9), Samples.n_cols-1).t() / 200.;
-	arma::mat trainingLabels = labels.submat(0, 0, labels.n_rows-1, (int)(labels.n_cols*0.9));
-	arma::mat testData = Samples.submat((int)(Samples.n_rows*0.9)+1, 1, Samples.n_rows-1, Samples.n_cols-1).t() / 200.;
-	printf("labels size (%d x %d)\n", labels.n_cols, labels.n_rows);
-	arma::mat testLabels = labels.submat(0, (int)(labels.n_cols*0.9)+1, labels.n_rows-1, labels.n_cols-1);
-
-	printf("trainingSamples is of size (%d x %d)\n", trainingSamples.n_cols, trainingSamples.n_rows);
-	printf("trainingLabels is of size (%d x %d)\n", trainingLabels.n_cols, trainingLabels.n_rows);
-	printf("testSamples is of size (%d x %d)\n", testData.n_cols, testData.n_rows);
-	printf("testLabels is of size (%d x %d)\n", testLabels.n_cols, testLabels.n_rows);
-
-	printf("loading complete\n");
-	std::vector<unsigned int> architecture {8, 10, 1};
-	printf("neural net initialized. Commencing with training\n");
-	NeuralNet ann (3, architecture);
-	ann.trainNetwork(trainingSamples, trainingLabels);
-
-	printf("Training complete!\n");
-	ann.getWeights(0).print("W_0");
-	ann.getWeights(1).print("W_1");
-	//ann.getWeights(2).print("W_2");
-
-	printf("starting classification for remaining data\n");
-	arma::mat classifiedData = ann.classifySamples(testData);
-	printf("classified data dims: (%d x %d)\n", classifiedData.n_cols, classifiedData.n_rows);
-	unsigned int correctOnes = 0;
-	for (unsigned int i = 0; i<classifiedData.n_cols; ++i) {
-		double error = 1/2. * arma::accu( arma::pow(testLabels.col(i) - classifiedData.col(i), 2) );
-		classifiedData.col(i).t().print("classified as");
-		testLabels.col(i).t().print("labelled as");
-		if (error <= 1.)
-			++correctOnes;
-	}
-	printf("correct classified: %d\n", correctOnes);
-	printf("false classified: %d\n", classifiedData.n_cols-correctOnes);
-}
 
 
 void testXOR ()
@@ -150,39 +76,35 @@ void testXOR ()
 
 	printf("INITIALIZING ANN\n");
 	std::vector<unsigned int> architecture {2, 2, 1};
-	NeuralNet ann (0.5, architecture);
-	ann.getWeights(0).print("W_1");
-	ann.getWeights(1).print("W_2");
+	NeuralNet ann (0.1, architecture);
 
 	printf("TRAINING\n");
 	//ann.trainNetwork(samples.rows(0,1).cols(0, numOfSamples/2), labels.cols(0, numOfSamples/2));
-	ann.trainNetwork(samples.rows(0,1), labels);
+	ann.trainNetwork(1, samples.rows(0,1), labels);
 
 	ann.getWeights(0).print("W_1");
 	ann.getWeights(1).print("W_2");
 
 	printf("CLASSIFY\n");
 	arma::mat f = mvrnorm(100, arma::ones(2,1)*distance, arma::eye(2,2)*variance).t();
-	arma::mat guessesF = ann.classifySamples(f);
-	guessesF.print("results from (1, 1)");
+	arma::mat guessesFirstQuadrant = ann.classifySamples(f);
+	guessesFirstQuadrant.print("results from (1, 1)");
 	arma::mat s = mvrnorm(100, mu2, arma::eye(2,2)*variance).t();
-	arma::mat guessesS = ann.classifySamples(s);
-	guessesS.print("results from (1, -1)");
+	arma::mat guessesSecondQuadrant = ann.classifySamples(s);
+	guessesSecondQuadrant.print("results from (1, -1)");
 	arma::mat t = mvrnorm(100, mu2*(-1), arma::eye(2,2)*variance).t();
-	arma::mat guessesT = ann.classifySamples(t);
-	guessesT.print("results from (-1, 1)");
+	arma::mat guessesThirdQuadrant = ann.classifySamples(t);
+	guessesThirdQuadrant.print("results from (-1, 1)");
 	arma::mat f2 = mvrnorm(100, arma::ones(2,1)*(-distance), arma::eye(2,2)*variance).t();
-	arma::mat guessesF2 = ann.classifySamples(f2);
-	guessesF2.print("results from (-1, -1)");
-	printf("Success rate: %f\n", calculateSuccessRate(guessesF, arma::ones(100).t()));
-	printf("Success rate: %f\n", calculateSuccessRate(guessesS, arma::zeros(100).t()));
-	printf("Success rate: %f\n", calculateSuccessRate(guessesT, arma::zeros(100).t()));
-	printf("Success rate: %f\n", calculateSuccessRate(guessesF2, arma::ones(100).t()));
+	arma::mat guessesFourthQuadrant = ann.classifySamples(f2);
+	guessesFourthQuadrant.print("results from (-1, -1)");
+	printf("Success rate: %f\n", calculateSuccessRate(guessesFirstQuadrant, arma::ones(100).t()));
+	printf("Success rate: %f\n", calculateSuccessRate(guessesSecondQuadrant, arma::zeros(100).t()));
+	printf("Success rate: %f\n", calculateSuccessRate(guessesThirdQuadrant, arma::zeros(100).t()));
+	printf("Success rate: %f\n", calculateSuccessRate(guessesFourthQuadrant, arma::ones(100).t()));
 }
 
 int main()
 {
 	testXOR();
-	//testAbalone();
-	//testBallClassification();
 }

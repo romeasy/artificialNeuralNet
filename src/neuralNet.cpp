@@ -22,16 +22,23 @@ NeuralNet::NeuralNet(float _learningRate, std::vector<unsigned int> _architectur
 }
 
 
-void NeuralNet::trainNetwork (arma::mat _samples, arma::mat _labels)
+NeuralNet::NeuralNet(std::string _path)
+{
+	load(_path);
+}
+
+void NeuralNet::trainNetwork (uint N, arma::mat _samples, arma::mat _labels)
 {
 	std::vector<arma::vec> derivatives;              // the derivative for every neuron
 	std::vector<arma::vec> output;                   // the output calculated by the forward pass in each neuron
 	initialize(output, derivatives);
 
-	for (unsigned int i = 0; i<_samples.n_cols; ++i) {
-		feedForward(_samples.col(i), output);
-		feedBackward(_labels.col(i), output, derivatives);
-		updateWeights(output, derivatives);
+	for (uint i=0; i<N; ++i) {
+		for (unsigned int i = 0; i<_samples.n_cols; ++i) {
+			feedForward(_samples.col(i), output);
+			feedBackward(_labels.col(i), output, derivatives);
+			updateWeights(output, derivatives);
+		}
 	}
 }
 
@@ -77,6 +84,26 @@ arma::mat NeuralNet::classifySamples (arma::mat _samples)
 arma::mat NeuralNet::getWeights (unsigned int _layer)
 {
 	return weights.at(_layer);
+}
+
+
+void NeuralNet::save (std::string _path)
+{
+	ANNParameters params;
+	params.architecture = architecture;
+	params.weights = weights;
+	params.learningRate = learningRate;
+	jsonSerializer::write(_path, params);
+}
+
+
+void NeuralNet::load (std::string _path)
+{
+	ANNParameters params;
+	jsonSerializer::read(_path, params);
+	architecture = params.architecture;
+	learningRate = params.learningRate;
+	weights = params.weights;
 }
 
 

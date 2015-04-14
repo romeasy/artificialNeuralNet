@@ -9,6 +9,23 @@
 #define NEURALNET_H_
 
 #include <armadillo>
+#include "jsonSerializer/armadillo.h"
+
+class ANNParameters {
+public:
+	float learningRate;
+	std::vector<unsigned int> architecture;
+	std::vector<arma::mat> weights;
+
+
+	void serialize (jsonSerializer::Node& node)
+	{
+		node["learningRate"] % learningRate;
+		node["architecture"] % architecture;
+		node["weights"] % weights;
+	}
+};
+
 
 /**
  * Implements a neural network. It is a fully connected network but the weights can be initialized
@@ -29,6 +46,15 @@ public:
 
 
 	/**
+	 * Initialize the network from a previously stored representation.
+	 * That is, the method loads weights, architecture and learning rate
+	 * and thus constructs a ready-to-use neural network with previously
+	 * learned weights.
+	 */
+	NeuralNet(std::string _path);
+
+
+	/**
 	 * Trains the neural network using the backpropagation algorithm.
 	 * It expects a sample matrix as input which is organized as follows:
 	 * Each column of the matrix corresponds to one input vector and
@@ -40,7 +66,7 @@ public:
 	 * @param _samples: The sample matrix, containing all the training data
 	 * @param _labels: A matrix of the same size, containing the expected output
 	 */
-	void trainNetwork (arma::mat _samples, arma::mat _labels);
+	void trainNetwork (uint N, arma::mat _samples, arma::mat _labels);
 
 
 	/**
@@ -74,6 +100,23 @@ public:
 	 * i (source).
 	 */
 	arma::mat getWeights (unsigned int _layer);
+
+
+	/**
+	 * Save all relevant parameters of the network to a file.
+	 *
+	 * @param _path: The path to write the parameters to
+	 */
+	void save (std::string _path);
+
+
+	/**
+	 * Load parameters from a file.
+	 *
+	 * @param _path: The path to load from
+	 */
+	void load (std::string _path);
+
 
 private:
 
